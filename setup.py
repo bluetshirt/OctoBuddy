@@ -4,30 +4,30 @@
 ### Do not forget to adjust the following variables to your own plugin.
 
 # The plugin's identifier, has to be unique
-plugin_identifier = "OctoBuddy"
+plugin_identifier = "OctoBuddyG"
 
 # The plugin's python package, should be "octoprint_<plugin identifier>", has to be unique
-plugin_package = "octoprint_OctoBuddy"
+plugin_package = "octoprint_OctoBuddyG"
 
 # The plugin's human readable name. Can be overwritten within OctoPrint's internal data via __plugin_name__ in the
 # plugin module
-plugin_name = "OctoBuddy"
+plugin_name = "OctoBuddyG"
 
 # The plugin's version. Can be overwritten within OctoPrint's internal data via __plugin_version__ in the plugin module
-plugin_version = "1.0.5"
+plugin_version = "0.0.1"
 #testgitignore
 # The plugin's description. Can be overwritten within OctoPrint's internal data via __plugin_description__ in the plugin
 # module
 plugin_description = """A plugin for use with OctoBuddy 3D Printer Companion"""
 
 # The plugin's author. Can be overwritten within OctoPrint's internal data via __plugin_author__ in the plugin module
-plugin_author = "Mark Lorenz"
+plugin_author = "Grant Partridge after Mark Lorenz"
 
 # The plugin's author's mail address.
-plugin_author_email = "dicotomygames@gmail.com"
+plugin_author_email = "bluetshirt@gmail.com"
 
 # The plugin's homepage URL. Can be overwritten within OctoPrint's internal data via __plugin_url__ in the plugin module
-plugin_url = "https://github.com/mlo821/OctoBuddy"
+plugin_url = "https://github.com/bluetshirt/OctoBuddy"
 
 # The plugin's license. Can be overwritten within OctoPrint's internal data via __plugin_license__ in the plugin module
 plugin_license = "AGPLv3"
