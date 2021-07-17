@@ -4,17 +4,12 @@ from __future__ import absolute_import, unicode_literals
 import octoprint.plugin
 import RPi.GPIO as GPIO
 
-
 import os
 
-bouncetime_button = 400
-bed_is_hot = False
-nozzle_is_hot = False
-
 class OctoBuddyPlugin(octoprint.plugin.StartupPlugin,
-					  octoprint.plugin.ShutdownPlugin,
-					  octoprint.plugin.SettingsPlugin,
-					  octoprint.plugin.TemplatePlugin):
+                      octoprint.plugin.ShutdownPlugin,
+                      octoprint.plugin.SettingsPlugin,
+                      octoprint.plugin.TemplatePlugin):
 
     def on_after_startup(self):
         self._logger.info("OctoBuddy %s Alive Now!", self._plugin_version)
@@ -22,122 +17,71 @@ class OctoBuddyPlugin(octoprint.plugin.StartupPlugin,
         self._logger.info(GPIO.RPI_INFO)
         self.setup_GPIO()
 
+    def set_temps(self, tool_temp, bed_temp):      
+    
+        nozzle_temp_formatted = str(tool_temp).rjust(3)
+        nozzle_string = f"Nozzle->{nozzle_temp_formatted}"
 
+        bed_temp_formatted = str(bed_temp).rjust(3)
+        bed_string = f"Bed->{bed_temp_formatted}"
+                            
+        self._printer.commands("M117 {nozzle_string}  {bed_string}")
+        self._printer.set_temperature("tool0", tool_temp)
+        self._printer.set_temperature("bed", bed_temp)
+        self._logger.info("Set Nozzle to {tool_temp}, Bed to {bed_temp}.")
 
     def button_callback(self, channel):
-        global nozzle_is_hot
-        global bed_is_hot
-        if channel == self.pause_pin:
-            self._printer.pause_print
 
+        if channel == self.pause_pin:
+            elif self._printer.get_state_id() == "PRINTING" or self._printer.is_printing():
+                self._printer.pause_print
+            if self._printer.get_state_id() == "PAUSED" or self._printer.is_pausing(): 
+                self._printer.resume_print
+                            
         if self._printer.get_state_id() != "PRINTING" and self._printer.is_printing() == False:
             if channel == self.home_pin:
                 self._printer.home("x")
                 self._printer.home("y")
                 self._printer.home("z")
 
-            if channel == self.resume_pin:
-                self._printer.resume_print
-
-            if channel == self.z_pin_pos:
-                d = {'z' :self.jog_increment}
-                self._printer.jog(d)
-
-            if channel == self.z_pin_neg:
-                d = {'z' :-self.jog_increment}
-                self._printer.jog(d)
-
-            if channel == self.y_pin_pos:
-                d = {'y' :self.jog_increment}
-                self._printer.jog(d)
-
-            if channel == self.y_pin_neg:
-                d = {'y' :-self.jog_increment}
-                self._printer.jog(d)
-
-            if channel == self.x_pin_pos:
-                d = {'x' :self.jog_increment}
-                self._printer.jog(d)
-
-            if channel == self.x_pin_neg:
-                d = {'x' :-self.jog_increment}
-                self._printer.jog(d)
-
-            if channel == self.set_nozzle_temperature_pin:
-
-                if nozzle_is_hot == True:
-                    self._printer.commands("M117 Nozzle Cooling")
-                    self._printer.set_temperature("tool0", 0)
-                    nozzle_is_hot = False
-                    self._logger.info("Set Nozzle Temp button pressed.  Nozzle was hot, cooling now")
-
-
-                else:
-                    self._printer.commands("M117 Nozzle Heating")
-                    self._printer.set_temperature("tool0", self.nozzle_temp)
-                    nozzle_is_hot = True
-                    self._logger.info("Set Nozzle Temp button pressed.  Nozzle was cool, heating now")
-
-
-            if channel == self.set_bed_temperature_pin:
-                if bed_is_hot == True:
-                    self._printer.commands("M117 Bed Cooling")
-                    self._printer.set_temperature("bed", 0)
-                    bed_is_hot = False
-                    self._logger.info("Set Bed Temp button pressed.  Bed was hot, cooling now")
-                    
-
-                else:
-                    self._printer.commands("M117 Bed Heating")
-                    self._printer.set_temperature("bed", self.bed_temp)
-                    bed_is_hot = True
-                    self._logger.info("Set Bed Temp button pressed.  Bed was cool, heating now")
-
-
-
+            if channel == self.heat_lo_pin:
+                self.set_temps(self.lo_nozzle_temp, self.lo_bed_temp)
+            if channel == self.heat_hi_pin: 
+                self.set_temps(self.hi_nozzle_temp, self.hi_bed_temp)
+            if channel == self.heat_off_pin: 
+                self.set_temps(0, 0)    
+            if channel == self.print_on_demand_pin:
+                self.select_file(script_path, True, printAfterSelect=True)
 
     def setup_GPIO(self):
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BOARD)
-
-        self.SetupSingleGPIO(self.home_pin)
-        self.SetupSingleGPIO(self.resume_pin)
+        
+        self.SetupSingleGPIO(self.heat_lo_pin)
+        self.SetupSingleGPIO(self.heat_hi_pin)
+        self.SetupSingleGPIO(self.heat_off_pin)
         self.SetupSingleGPIO(self.pause_pin)
-        self.SetupSingleGPIO(self.x_pin_pos)
-        self.SetupSingleGPIO(self.x_pin_neg)
-        self.SetupSingleGPIO(self.y_pin_pos)
-        self.SetupSingleGPIO(self.y_pin_neg)
-        self.SetupSingleGPIO(self.z_pin_pos)
-        self.SetupSingleGPIO(self.z_pin_neg)
-        self.SetupSingleGPIO(self.set_nozzle_temperature_pin)
-        self.SetupSingleGPIO(self.set_bed_temperature_pin)
+        self.SetupSingleGPIO(self.home_pin)
+        self.SetupSingleGPIO(self.print_on_demand_pin)
 
-
-		#1
     def get_settings_defaults(self): 
         return dict(
-		    home_pin	= 35,   
-		    x_pin_pos   = 23,
-		    x_pin_neg   = 29,
-		    y_pin_pos   = 19,
-		    y_pin_neg   = 21,
-		    z_pin_pos   = 31,
-		    z_pin_neg   = 33,
-		    resume_pin  = -1,
-		    pause_pin   = -1,
-            set_nozzle_temperature_pin = 15,
-            nozzle_temp = 200,
-            set_bed_temperature_pin = 37,
-            bed_temp = 50,
-			debounce    = 400,
-            jog_increment = 5,
-			#2
-		)
+            heat_lo_pin   = 31,
+            heat_hi_pin   = 33,
+            heat_off_pin  = 35,
+            pause_pin    = 19,   
+            home_pin     = 21,
+            print_on_demand_pin = 23,
+            lo_nozzle_temp = 200,
+            lo_bed_temp = 50,
+            hi_nozzle_temp = 210,
+            hi_bed_temp = 60,
+            script_path = "PrintOnDemand.gcode",
+            debounce    = 400
+        )
 
     def get_template_configs(self):
         return [dict(type = "settings", custom_bindings=False)]
-
-
 
     def on_settings_save(self, data):
         self.RemoveEventDetects(); #remove all active event detects
@@ -150,11 +94,9 @@ class OctoBuddyPlugin(octoprint.plugin.StartupPlugin,
     def SetupSingleGPIO(self, channel):
         try:
             if channel != -1:
- 
                 GPIO.setup(channel, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
                 GPIO.add_event_detect(channel, GPIO.RISING, callback=self.button_callback, bouncetime = self.debounce)
                 self._logger.info("New Event Detect has been added to GPIO # %s", channel)
-
 
         except:
             self._logger.exception("Cannot setup GPIO ports %s, check to makes sure you don't have the same ports assigned to multiple actions", str(channel))
@@ -163,28 +105,16 @@ class OctoBuddyPlugin(octoprint.plugin.StartupPlugin,
         try:
             if self.home_pin != -1:
                 GPIO.remove_event_detect(self.home_pin)
-            if self.resume_pin != -1:
-                GPIO.remove_event_detect(self.resume_pin)
             if self.pause_pin != -1:
                 GPIO.remove_event_detect(self.pause_pin)
-            if self.x_pin_pos != -1:
-                GPIO.remove_event_detect(self.x_pin_pos)
-            if self.x_pin_neg != -1:
-                GPIO.remove_event_detect(self.x_pin_neg)
-            if self.y_pin_pos != -1:
-                GPIO.remove_event_detect(self.y_pin_pos)
-            if self.y_pin_neg != -1:
-                GPIO.remove_event_detect(self.y_pin_neg)
-            if self.z_pin_pos != -1:
-                GPIO.remove_event_detect(self.z_pin_pos)
-            if self.z_pin_neg != -1:
-                GPIO.remove_event_detect(self.z_pin_neg)
-            if self.set_nozzle_temperature_pin != -1:
-                GPIO.remove_event_detect(set_nozzle_temperature_pin)
-            if self.set_bed_temperature_pin != -1:
-                GPIO.remove_event_detect(set_bed_temperature_pin)
-
-
+            if self.print_on_demand_pin != -1:
+                GPIO.remove_event_detect(self.print_on_demand_pin)         
+            if self.heat_lo_pin != -1:
+                GPIO.remove_event_detect(self.heat_lo_pin)
+            if self.heat_hi_pin != -1:
+                GPIO.remove_event_detect(self.heat_hi_pin)
+            if self.heat_off_pin != -1:
+                GPIO.remove_event_detect(self.heat_off_pin)
         except:
             self._logger.info("Issue with removing event detects.  Contact plugin owner")
 
@@ -205,56 +135,41 @@ class OctoBuddyPlugin(octoprint.plugin.StartupPlugin,
         return int(self._settings.get(["pause_pin"]))
 
     @property
-    def resume_pin(self):
-        return int(self._settings.get(["resume_pin"]))
+    def print_on_demand_pin(self):
+        return int(self._settings.get(["print_on_demand_pin"]))
 
     @property
-    def x_pin_pos(self):
-        return int(self._settings.get(["x_pin_pos"]))
+    def heat_hi_pin(self):
+        return int(self._settings.get(["heat_hi_pin"]))
 
     @property
-    def x_pin_neg(self):
-        return int(self._settings.get(["x_pin_neg"]))
+    def heat_lo_pin(self):
+        return int(self._settings.get(["heat_lo_pin"]))
 
     @property
-    def y_pin_pos(self):
-        return int(self._settings.get(["y_pin_pos"]))
+    def heat_off_pin(self):
+        return int(self._settings.get(["heat_off_pin"]))
 
     @property
-    def y_pin_neg(self):
-        return int(self._settings.get(["y_pin_neg"]))
+    def lo_nozzle_temp(self):
+        return int(self._settings.get(["lo_nozzle_temp"]))
 
     @property
-    def z_pin_pos(self):
-        return int(self._settings.get(["z_pin_pos"]))
+    def lo_bed_temp(self):
+        return int(self._settings.get(["lo_bed_temp"]))
+        
+    @property
+    def hi_nozzle_temp(self):
+        return int(self._settings.get(["hi_nozzle_temp"]))
 
     @property
-    def z_pin_neg(self):
-        return int(self._settings.get(["z_pin_neg"]))
+    def hi_bed_temp(self):
+        return int(self._settings.get(["hi_bed_temp"]))
 
     @property
-    def jog_increment(self):
-        return int(self._settings.get(["jog_increment"]))
+    def script_path(self):
+        return int(self._settings.get(["script_path"]))
 
-    @property
-    def e_stop_pin(self):
-        return int(self._settings.get(["e_stop_pin"])) #3
-
-    @property
-    def set_nozzle_temperature_pin(self):
-        return int(self._settings.get(["set_nozzle_temperature_pin"]))
-
-    @property
-    def set_bed_temperature_pin(self):
-        return int(self._settings.get(["set_bed_temperature_pin"]))
-
-    @property
-    def nozzle_temp(self):
-        return int(self._settings.get(["nozzle_temp"]))
-
-    @property
-    def bed_temp(self):
-        return int(self._settings.get(["bed_temp"]))
 
     def get_update_information(self):
         return dict(
@@ -263,12 +178,12 @@ class OctoBuddyPlugin(octoprint.plugin.StartupPlugin,
                 displayVersion=self._plugin_version,
                 type="github_release",
                 current=self._plugin_version,
-                user="mlo821",
+                user="bluetshirt",
                 repo="OctoBuddy",
 
-                pip="https://github.com/mlo821/OctoBuddy/archive/{target_version}.zip"
-			)
-		)
+                pip="https://github.com/bluetshirt/OctoBuddy/archive/{target_version}.zip"
+            )
+        )
 
 __plugin_pythoncompat__ = ">=2.7,<4"
 
